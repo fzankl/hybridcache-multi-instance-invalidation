@@ -1,0 +1,302 @@
+environment: Azure Container Apps West US (one replica per instance, two for hybridcache-replicas), Azure Managed Redis Balanced_B0, Redis 7.4, OSSCluster, Entra ID, West US. Microsoft.Extensions.Caching.Hybrid 10.10.0, ZiggyCreatures.FusionCache 2.9.0 via AsHybridCache. L1 10 s, L2 60 s, poll 100 ms plus round trip. Scenario runs on a local machine in Germany.
+
+===== fusioncache-tags key default =====
+fusioncache-tags, invalidate by key, options=default
+A reads after the invalidation: no
+A https://fusioncache-tags-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+Round trip: A 195 ms, B 186 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:39dd769c miss
+            L2 set v2:product:39dd769c
+         B -> v1 (l2)
+            L2 get v2:product:39dd769c hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:39dd769c miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache-tags:source:39dd769c (String, no ttl)
+            fusioncache-tags:v2:product:39dd769c (Hash, ttl 53 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache-tags:source:39dd769c (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.0 s  B -> v1 (l1)
+  8.4 s  B -> v2 (source)
+            L2 get v2:product:39dd769c miss
+            L2 set v2:product:39dd769c
+         Redis at the end:
+            fusioncache-tags:source:39dd769c (String, no ttl)
+            fusioncache-tags:v2:product:39dd769c (Hash, ttl 59 s)
+
+B returned stale data for 8.4 s (28 stale reads).
+
+===== fusioncache-tags key default read-a =====
+fusioncache-tags, invalidate by key, options=default
+A reads after the invalidation: yes
+A https://fusioncache-tags-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+Round trip: A 195 ms, B 176 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:23991f25 miss
+            L2 set v2:product:23991f25
+         B -> v1 (l2)
+            L2 get v2:product:23991f25 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:23991f25 miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache-tags:source:23991f25 (String, no ttl)
+            fusioncache-tags:v2:product:23991f25 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache-tags:source:23991f25 (String, no ttl)
+         A -> v2 (source)
+            L2 get v2:product:23991f25 miss
+            L2 set v2:product:23991f25
+  0.0 s  B -> v1 (l1)
+  5.0 s  B -> v1 (l1)
+  8.9 s  B -> v2 (l2)
+            L2 get v2:product:23991f25 hit
+         Redis at the end:
+            fusioncache-tags:source:23991f25 (String, no ttl)
+            fusioncache-tags:v2:product:23991f25 (Hash, ttl 50 s)
+
+B returned stale data for 8.9 s (30 stale reads).
+
+===== fusioncache-tags tag default =====
+fusioncache-tags, invalidate by tag, options=default
+A reads after the invalidation: no
+A https://fusioncache-tags-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+Round trip: A 199 ms, B 187 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:2bba7698 miss
+            L2 set v2:product:2bba7698
+         B -> v1 (l2)
+            L2 get v2:product:2bba7698 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:2bba7698 miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache-tags:source:2bba7698 (String, no ttl)
+            fusioncache-tags:v2:product:2bba7698 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache-tags:source:2bba7698 (String, no ttl)
+            fusioncache-tags:v2:__fc:t:product-tag:2bba7698 (Hash, ttl 863999 s)
+            fusioncache-tags:v2:product:2bba7698 (Hash, ttl 58 s)
+  0.0 s  B -> v1 (l1)
+  4.4 s  B -> v2 (source)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:2bba7698 hit
+            L2 get v2:product:2bba7698 hit
+            L2 set v2:product:2bba7698
+         Redis at the end:
+            fusioncache-tags:source:2bba7698 (String, no ttl)
+            fusioncache-tags:v2:__fc:t:product-tag:2bba7698 (Hash, ttl 863994 s)
+            fusioncache-tags:v2:product:2bba7698 (Hash, ttl 59 s)
+
+B returned stale data for 4.4 s (15 stale reads).
+
+===== fusioncache-tags tag default read-a =====
+fusioncache-tags, invalidate by tag, options=default
+A reads after the invalidation: yes
+A https://fusioncache-tags-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+Round trip: A 189 ms, B 175 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:b2811c9a miss
+            L2 set v2:product:b2811c9a
+         B -> v1 (l2)
+            L2 get v2:product:b2811c9a hit
+            L2 get v2:__fc:t:product-tag:b2811c9a miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache-tags:source:b2811c9a (String, no ttl)
+            fusioncache-tags:v2:product:b2811c9a (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache-tags:source:b2811c9a (String, no ttl)
+            fusioncache-tags:v2:__fc:t:product-tag:b2811c9a (Hash, ttl 863999 s)
+            fusioncache-tags:v2:product:b2811c9a (Hash, ttl 58 s)
+         A -> v2 (source)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:product:b2811c9a hit
+            L2 set v2:product:b2811c9a
+  0.0 s  B -> v1 (l1)
+            L2 get v2:__fc:t:! miss
+  4.1 s  B -> v2 (l2)
+            L2 get v2:__fc:t:product-tag:b2811c9a hit
+            L2 get v2:product:b2811c9a hit
+            L2 get v2:__fc:t:* miss
+         Redis at the end:
+            fusioncache-tags:source:b2811c9a (String, no ttl)
+            fusioncache-tags:v2:__fc:t:product-tag:b2811c9a (Hash, ttl 863994 s)
+            fusioncache-tags:v2:product:b2811c9a (Hash, ttl 55 s)
+
+B returned stale data for 4.1 s (14 stale reads).
+
+===== fusioncache-tags key expiration-only =====
+fusioncache-tags, invalidate by key, options=expiration-only
+A reads after the invalidation: no
+A https://fusioncache-tags-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+Round trip: A 167 ms, B 175 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:21c48226 miss
+            L2 set v2:product:21c48226
+         B -> v1 (l2)
+            L2 get v2:product:21c48226 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:21c48226 miss
+         Redis after warm-up:
+            fusioncache-tags:source:21c48226 (String, no ttl)
+            fusioncache-tags:v2:product:21c48226 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache-tags:source:21c48226 (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+ 10.1 s  B -> v1 (l1)
+ 15.1 s  B -> v1 (l1)
+ 20.2 s  B -> v1 (l1)
+ 25.2 s  B -> v1 (l1)
+ 30.3 s  B -> v1 (l1)
+ 35.6 s  B -> v1 (l1)
+ 40.6 s  B -> v1 (l1)
+ 45.7 s  B -> v1 (l1)
+ 50.8 s  B -> v1 (l1)
+ 55.8 s  B -> v1 (l1)
+ 59.0 s  B -> v2 (source)
+            L2 get v2:product:21c48226 miss
+            L2 set v2:product:21c48226
+         Redis at the end:
+            fusioncache-tags:source:21c48226 (String, no ttl)
+            fusioncache-tags:v2:product:21c48226 (Hash, ttl 59 s)
+
+B returned stale data for 59.0 s (221 stale reads).
+
+===== fusioncache-tags tag expiration-only =====
+fusioncache-tags, invalidate by tag, options=expiration-only
+A reads after the invalidation: no
+A https://fusioncache-tags-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+Round trip: A 165 ms, B 166 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:b463b83e miss
+            L2 set v2:product:b463b83e
+         B -> v1 (l2)
+            L2 get v2:product:b463b83e hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:b463b83e miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache-tags:source:b463b83e (String, no ttl)
+            fusioncache-tags:v2:product:b463b83e (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache-tags:source:b463b83e (String, no ttl)
+            fusioncache-tags:v2:__fc:t:product-tag:b463b83e (Hash, ttl 863999 s)
+            fusioncache-tags:v2:product:b463b83e (Hash, ttl 58 s)
+  0.0 s  B -> v1 (l1)
+  4.2 s  B -> v2 (source)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:b463b83e hit
+            L2 get v2:product:b463b83e hit
+            L2 set v2:product:b463b83e
+         Redis at the end:
+            fusioncache-tags:source:b463b83e (String, no ttl)
+            fusioncache-tags:v2:__fc:t:product-tag:b463b83e (Hash, ttl 863994 s)
+            fusioncache-tags:v2:product:b463b83e (Hash, ttl 59 s)
+
+B returned stale data for 4.2 s (15 stale reads).
+
+===== fusioncache-tags key complete =====
+fusioncache-tags, invalidate by key, options=complete
+A reads after the invalidation: no
+A https://fusioncache-tags-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+Round trip: A 157 ms, B 161 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:1be50dfa miss
+            L2 set v2:product:1be50dfa
+         B -> v1 (l2)
+            L2 get v2:product:1be50dfa hit
+            L2 get v2:__fc:t:product-tag:1be50dfa miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache-tags:source:1be50dfa (String, no ttl)
+            fusioncache-tags:v2:product:1be50dfa (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache-tags:source:1be50dfa (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+  9.4 s  B -> v2 (source)
+            L2 get v2:product:1be50dfa miss
+            L2 set v2:product:1be50dfa
+         Redis at the end:
+            fusioncache-tags:source:1be50dfa (String, no ttl)
+            fusioncache-tags:v2:product:1be50dfa (Hash, ttl 59 s)
+
+B returned stale data for 9.4 s (35 stale reads).
+
+===== fusioncache-tags tag complete =====
+fusioncache-tags, invalidate by tag, options=complete
+A reads after the invalidation: no
+A https://fusioncache-tags-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+Round trip: A 155 ms, B 156 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:4b4090c8 miss
+            L2 set v2:product:4b4090c8
+         B -> v1 (l2)
+            L2 get v2:product:4b4090c8 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:4b4090c8 miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache-tags:source:4b4090c8 (String, no ttl)
+            fusioncache-tags:v2:product:4b4090c8 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache-tags:source:4b4090c8 (String, no ttl)
+            fusioncache-tags:v2:__fc:t:product-tag:4b4090c8 (Hash, ttl 863999 s)
+            fusioncache-tags:v2:product:4b4090c8 (Hash, ttl 58 s)
+  0.0 s  B -> v1 (l1)
+  4.2 s  B -> v2 (source)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:4b4090c8 hit
+            L2 get v2:product:4b4090c8 hit
+            L2 set v2:product:4b4090c8
+         Redis at the end:
+            fusioncache-tags:source:4b4090c8 (String, no ttl)
+            fusioncache-tags:v2:__fc:t:product-tag:4b4090c8 (Hash, ttl 863994 s)
+            fusioncache-tags:v2:product:4b4090c8 (Hash, ttl 59 s)
+
+B returned stale data for 4.2 s (16 stale reads).

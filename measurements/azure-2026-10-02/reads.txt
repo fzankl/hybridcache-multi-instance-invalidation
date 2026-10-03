@@ -1,0 +1,141 @@
+environment: Azure Container Apps West US (one replica per instance, two for hybridcache-replicas), Azure Managed Redis Balanced_B0, Redis 7.4, OSSCluster, Entra ID, West US. Microsoft.Extensions.Caching.Hybrid 10.10.0, ZiggyCreatures.FusionCache 2.9.0 via AsHybridCache. L1 10 s, L2 60 s, read every 100 ms plus round trip, no invalidation. Scenario runs on a local machine in Germany.
+
+===== reads hybridcache =====
+hybridcache, no invalidation, B read for 55 s
+B https://hybridcache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+
+  0.0 s  B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:655a6a5c miss
+            L2 get product:655a6a5c hit
+ 10.4 s  B -> v1 (l2)
+            L2 get product:655a6a5c hit
+ 20.6 s  B -> v1 (l2)
+            L2 get product:655a6a5c hit
+ 30.9 s  B -> v1 (l2)
+            L2 get product:655a6a5c hit
+ 41.1 s  B -> v1 (l2)
+            L2 get product:655a6a5c hit
+ 51.1 s  B -> v1 (l2)
+            L2 get product:655a6a5c hit
+
+   1 x L2 get __MSFT_HCT__product-tag:655a6a5c
+   6 x L2 get product:655a6a5c
+
+203 reads in 55 s, 6 of them touched L2, 7 L2 calls.
+
+===== reads fusioncache =====
+fusioncache, no invalidation, B read for 55 s
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+
+  0.0 s  B -> v1 (l2)
+            L2 get v2:product:9972184d hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:9972184d miss
+            L2 get v2:__fc:t:* miss
+ 10.4 s  B -> v1 (l2)
+            L2 get v2:product:9972184d hit
+ 20.4 s  B -> v1 (l2)
+            L2 get v2:product:9972184d hit
+ 30.5 s  B -> v1 (l2)
+            L2 get v2:product:9972184d hit
+ 40.6 s  B -> v1 (l2)
+            L2 get v2:product:9972184d hit
+ 50.6 s  B -> v1 (l2)
+            L2 get v2:product:9972184d hit
+
+   1 x L2 get v2:__fc:t:!
+   1 x L2 get v2:__fc:t:*
+   1 x L2 get v2:__fc:t:product-tag:9972184d
+   6 x L2 get v2:product:9972184d
+
+207 reads in 55 s, 6 of them touched L2, 9 L2 calls.
+
+===== reads fusioncache-backplane =====
+fusioncache-backplane, no invalidation, B read for 55 s
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+
+  0.0 s  B -> v1 (l2)
+            L2 get v2:product:d05f8059 hit
+            L2 get v2:__fc:t:product-tag:d05f8059 miss
+ 10.4 s  B -> v1 (l2)
+            L2 get v2:product:d05f8059 hit
+ 20.4 s  B -> v1 (l2)
+            L2 get v2:product:d05f8059 hit
+ 30.5 s  B -> v1 (l2)
+            L2 get v2:product:d05f8059 hit
+ 40.6 s  B -> v1 (l2)
+            L2 get v2:product:d05f8059 hit
+ 50.6 s  B -> v1 (l2)
+            L2 get v2:product:d05f8059 hit
+
+   1 x L2 get v2:__fc:t:product-tag:d05f8059
+   6 x L2 get v2:product:d05f8059
+
+207 reads in 55 s, 6 of them touched L2, 7 L2 calls.
+
+===== reads fusioncache-tags =====
+fusioncache-tags, no invalidation, B read for 55 s
+B https://fusioncache-tags-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Tag markers in L1 (TagsDefaultEntryOptions.MemoryCacheDuration) 00:00:05
+
+  0.0 s  B -> v1 (l2)
+            L2 get v2:product:3aebdad0 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+  5.4 s  B -> v1 (l1)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 10.4 s  B -> v1 (l2)
+            L2 get v2:product:3aebdad0 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 15.4 s  B -> v1 (l1)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 20.4 s  B -> v1 (l2)
+            L2 get v2:product:3aebdad0 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 25.5 s  B -> v1 (l1)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 30.5 s  B -> v1 (l2)
+            L2 get v2:product:3aebdad0 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 35.5 s  B -> v1 (l1)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 40.6 s  B -> v1 (l2)
+            L2 get v2:product:3aebdad0 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 45.6 s  B -> v1 (l1)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+ 50.6 s  B -> v1 (l2)
+            L2 get v2:product:3aebdad0 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:3aebdad0 miss
+            L2 get v2:__fc:t:* miss
+
+  11 x L2 get v2:__fc:t:!
+  11 x L2 get v2:__fc:t:*
+  11 x L2 get v2:__fc:t:product-tag:3aebdad0
+   6 x L2 get v2:product:3aebdad0
+
+207 reads in 55 s, 11 of them touched L2, 39 L2 calls.

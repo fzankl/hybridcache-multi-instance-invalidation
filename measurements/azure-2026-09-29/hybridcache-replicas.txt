@@ -1,0 +1,133 @@
+environment: Azure Container Apps West US, one app with two replicas behind one ingress, Azure Managed Redis Balanced_B0, Redis 7.4, OSSCluster, Entra ID. Microsoft.Extensions.Caching.Hybrid 10.10.0. L1 10 s, L2 60 s, read every 250 ms plus round trip, new connection per request. Scenario runs on a local machine in Germany.
+
+===== replicas key =====
+hybridcache, two replicas behind one endpoint, invalidate by key
+Endpoint https://hybridcache-replicas.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+
+         hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v1 (source)
+         hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l2)
+-- source changed to v2 --
+-- hybridcache-replicas--a2mxtne-5759b844c4-lph49 removed the entry by key --
+  0.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  0.8 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  1.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (source)
+  2.3 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  3.0 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  3.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  4.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  5.2 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  5.9 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  6.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  7.4 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  8.1 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  8.9 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l2)
+  9.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 10.4 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 11.1 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 11.9 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l2)
+ 12.6 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+
+hybridcache-replicas--a2mxtne-5759b844c4-82mnz: 6 x v1, 3 x v2
+hybridcache-replicas--a2mxtne-5759b844c4-lph49: 0 x v1, 9 x v2
+The value changed 5 times between consecutive reads.
+
+===== replicas tag =====
+hybridcache, two replicas behind one endpoint, invalidate by tag
+Endpoint https://hybridcache-replicas.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+
+         hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v1 (source)
+         hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l2)
+-- source changed to v2 --
+-- hybridcache-replicas--a2mxtne-5759b844c4-lph49 removed the entry by tag --
+  0.0 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (source)
+  0.7 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  1.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  2.2 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  3.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  3.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  4.4 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  5.2 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  5.9 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+  6.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  7.4 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  8.1 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v1 (l1)
+  8.9 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l2)
+  9.6 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 10.4 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l2)
+ 11.1 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 11.8 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 12.6 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 13.3 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 14.1 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 14.8 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 15.6 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 16.3 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 17.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 17.8 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 18.5 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 19.3 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 20.0 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 20.8 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l2)
+ 21.5 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 22.2 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l2)
+ 23.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 23.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 24.5 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 25.2 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 26.0 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 26.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 27.4 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 28.2 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 28.9 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 29.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 30.4 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 31.1 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 31.9 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 32.6 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l2)
+ 33.3 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 34.1 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 34.8 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l2)
+ 35.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 36.3 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 37.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 37.8 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 38.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 39.3 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 40.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 40.8 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 41.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 42.2 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 43.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l2)
+ 43.7 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 44.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 45.2 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 46.0 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l2)
+ 46.7 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 47.4 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 48.2 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 48.9 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 49.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 50.4 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 51.2 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 51.9 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 52.6 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 53.4 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 54.1 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l2)
+ 54.8 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 55.6 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 56.3 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 57.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 57.8 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 58.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l2)
+ 59.3 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 60.0 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (l1)
+ 60.7 s  hybridcache-replicas--a2mxtne-5759b844c4-82mnz -> v2 (source)
+ 61.5 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l2)
+ 62.2 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+ 62.9 s  hybridcache-replicas--a2mxtne-5759b844c4-lph49 -> v2 (l1)
+
+hybridcache-replicas--a2mxtne-5759b844c4-82mnz: 7 x v1, 35 x v2
+hybridcache-replicas--a2mxtne-5759b844c4-lph49: 0 x v1, 44 x v2
+The value changed 4 times between consecutive reads.

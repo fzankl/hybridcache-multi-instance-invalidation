@@ -1,0 +1,380 @@
+environment: Azure Container Apps West US (one replica per instance, two for hybridcache-replicas), Azure Managed Redis Balanced_B0, Redis 7.4, OSSCluster, Entra ID, West US. Microsoft.Extensions.Caching.Hybrid 10.10.0, ZiggyCreatures.FusionCache 2.9.0 via AsHybridCache. L1 10 s, L2 60 s, poll 100 ms plus round trip. Scenario runs on a local machine in Germany.
+
+===== fusioncache key default =====
+fusioncache, invalidate by key, options=default
+A reads after the invalidation: no
+A https://fusioncache-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 188 ms, B 195 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:65b22070 miss
+            L2 set v2:product:65b22070
+         B -> v1 (l2)
+            L2 get v2:product:65b22070 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:65b22070 miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache:source:65b22070 (String, no ttl)
+            fusioncache:source:65b22070 (String, no ttl)
+            fusioncache:v2:product:65b22070 (Hash, ttl 54 s)
+            fusioncache:v2:product:65b22070 (Hash, ttl 54 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache:source:65b22070 (String, no ttl)
+            fusioncache:source:65b22070 (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.2 s  B -> v1 (l1)
+  9.0 s  B -> v2 (source)
+            L2 get v2:product:65b22070 miss
+            L2 set v2:product:65b22070
+         Redis at the end:
+            fusioncache:source:65b22070 (String, no ttl)
+            fusioncache:source:65b22070 (String, no ttl)
+            fusioncache:v2:product:65b22070 (Hash, ttl 59 s)
+            fusioncache:v2:product:65b22070 (Hash, ttl 59 s)
+
+B returned stale data for 9.0 s (27 stale reads).
+
+===== fusioncache key default read-a =====
+fusioncache, invalidate by key, options=default
+A reads after the invalidation: yes
+A https://fusioncache-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 192 ms, B 194 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:e76b4715 miss
+            L2 set v2:product:e76b4715
+         B -> v1 (l2)
+            L2 get v2:product:e76b4715 hit
+            L2 get v2:__fc:t:product-tag:e76b4715 miss
+         Redis after warm-up:
+            fusioncache:source:e76b4715 (String, no ttl)
+            fusioncache:source:e76b4715 (String, no ttl)
+            fusioncache:v2:product:e76b4715 (Hash, ttl 59 s)
+            fusioncache:v2:product:e76b4715 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache:source:e76b4715 (String, no ttl)
+            fusioncache:source:e76b4715 (String, no ttl)
+         A -> v2 (source)
+            L2 get v2:product:e76b4715 miss
+            L2 set v2:product:e76b4715
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+  9.0 s  B -> v2 (l2)
+            L2 get v2:product:e76b4715 hit
+         Redis at the end:
+            fusioncache:source:e76b4715 (String, no ttl)
+            fusioncache:source:e76b4715 (String, no ttl)
+            fusioncache:v2:product:e76b4715 (Hash, ttl 50 s)
+            fusioncache:v2:product:e76b4715 (Hash, ttl 50 s)
+
+B returned stale data for 9.0 s (30 stale reads).
+
+===== fusioncache tag default =====
+fusioncache, invalidate by tag, options=default
+A reads after the invalidation: no
+A https://fusioncache-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 188 ms, B 193 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:54fc63d6 miss
+            L2 set v2:product:54fc63d6
+         B -> v1 (l2)
+            L2 get v2:product:54fc63d6 hit
+            L2 get v2:__fc:t:product-tag:54fc63d6 miss
+         Redis after warm-up:
+            fusioncache:source:54fc63d6 (String, no ttl)
+            fusioncache:source:54fc63d6 (String, no ttl)
+            fusioncache:v2:product:54fc63d6 (Hash, ttl 59 s)
+            fusioncache:v2:product:54fc63d6 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache:source:54fc63d6 (String, no ttl)
+            fusioncache:source:54fc63d6 (String, no ttl)
+            fusioncache:v2:__fc:t:product-tag:54fc63d6 (Hash, ttl 863999 s)
+            fusioncache:v2:__fc:t:product-tag:54fc63d6 (Hash, ttl 863999 s)
+            fusioncache:v2:product:54fc63d6 (Hash, ttl 58 s)
+            fusioncache:v2:product:54fc63d6 (Hash, ttl 58 s)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+  9.2 s  B -> v1 (l2)
+            L2 get v2:product:54fc63d6 hit
+  9.4 s  B -> v1 (l1)
+ 14.5 s  B -> v1 (l1)
+ 19.3 s  B -> v1 (l2)
+            L2 get v2:product:54fc63d6 hit
+ 19.5 s  B -> v1 (l1)
+ 24.6 s  B -> v1 (l1)
+ 29.4 s  B -> v1 (l2)
+            L2 get v2:product:54fc63d6 hit
+ 29.7 s  B -> v1 (l1)
+ 34.7 s  B -> v1 (l1)
+ 39.5 s  B -> v1 (l2)
+            L2 get v2:product:54fc63d6 hit
+ 39.8 s  B -> v1 (l1)
+ 44.8 s  B -> v1 (l1)
+ 49.6 s  B -> v1 (l2)
+            L2 get v2:product:54fc63d6 hit
+ 49.8 s  B -> v1 (l1)
+ 54.9 s  B -> v1 (l1)
+ 58.9 s  B -> v2 (source)
+            L2 get v2:product:54fc63d6 miss
+            L2 set v2:product:54fc63d6
+         Redis at the end:
+            fusioncache:source:54fc63d6 (String, no ttl)
+            fusioncache:source:54fc63d6 (String, no ttl)
+            fusioncache:v2:__fc:t:product-tag:54fc63d6 (Hash, ttl 863940 s)
+            fusioncache:v2:__fc:t:product-tag:54fc63d6 (Hash, ttl 863940 s)
+            fusioncache:v2:product:54fc63d6 (Hash, ttl 59 s)
+            fusioncache:v2:product:54fc63d6 (Hash, ttl 59 s)
+
+B returned stale data for 58.9 s (216 stale reads).
+
+===== fusioncache tag default read-a =====
+fusioncache, invalidate by tag, options=default
+A reads after the invalidation: yes
+A https://fusioncache-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 165 ms, B 164 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:0fae12eb miss
+            L2 set v2:product:0fae12eb
+         B -> v1 (l2)
+            L2 get v2:product:0fae12eb hit
+            L2 get v2:__fc:t:product-tag:0fae12eb miss
+         Redis after warm-up:
+            fusioncache:source:0fae12eb (String, no ttl)
+            fusioncache:source:0fae12eb (String, no ttl)
+            fusioncache:v2:product:0fae12eb (Hash, ttl 59 s)
+            fusioncache:v2:product:0fae12eb (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache:source:0fae12eb (String, no ttl)
+            fusioncache:source:0fae12eb (String, no ttl)
+            fusioncache:v2:__fc:t:product-tag:0fae12eb (Hash, ttl 863999 s)
+            fusioncache:v2:__fc:t:product-tag:0fae12eb (Hash, ttl 863999 s)
+            fusioncache:v2:product:0fae12eb (Hash, ttl 58 s)
+            fusioncache:v2:product:0fae12eb (Hash, ttl 58 s)
+         A -> v2 (source)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:product:0fae12eb hit
+            L2 set v2:product:0fae12eb
+  0.0 s  B -> v1 (l1)
+  5.2 s  B -> v1 (l1)
+  9.0 s  B -> v2 (l2)
+            L2 get v2:product:0fae12eb hit
+         Redis at the end:
+            fusioncache:source:0fae12eb (String, no ttl)
+            fusioncache:source:0fae12eb (String, no ttl)
+            fusioncache:v2:__fc:t:product-tag:0fae12eb (Hash, ttl 863989 s)
+            fusioncache:v2:__fc:t:product-tag:0fae12eb (Hash, ttl 863989 s)
+            fusioncache:v2:product:0fae12eb (Hash, ttl 50 s)
+            fusioncache:v2:product:0fae12eb (Hash, ttl 50 s)
+
+B returned stale data for 9.0 s (33 stale reads).
+
+===== fusioncache key expiration-only =====
+fusioncache, invalidate by key, options=expiration-only
+A reads after the invalidation: no
+A https://fusioncache-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 165 ms, B 160 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:582b87d8 miss
+            L2 set v2:product:582b87d8
+         B -> v1 (l2)
+            L2 get v2:product:582b87d8 hit
+            L2 get v2:__fc:t:product-tag:582b87d8 miss
+         Redis after warm-up:
+            fusioncache:source:582b87d8 (String, no ttl)
+            fusioncache:source:582b87d8 (String, no ttl)
+            fusioncache:v2:product:582b87d8 (Hash, ttl 59 s)
+            fusioncache:v2:product:582b87d8 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache:source:582b87d8 (String, no ttl)
+            fusioncache:source:582b87d8 (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+ 10.1 s  B -> v1 (l1)
+ 15.2 s  B -> v1 (l1)
+ 20.2 s  B -> v1 (l1)
+ 25.2 s  B -> v1 (l1)
+ 30.3 s  B -> v1 (l1)
+ 35.3 s  B -> v1 (l1)
+ 40.4 s  B -> v1 (l1)
+ 45.4 s  B -> v1 (l1)
+ 50.4 s  B -> v1 (l1)
+ 55.5 s  B -> v1 (l1)
+ 59.2 s  B -> v2 (source)
+            L2 get v2:product:582b87d8 miss
+            L2 set v2:product:582b87d8
+         Redis at the end:
+            fusioncache:source:582b87d8 (String, no ttl)
+            fusioncache:source:582b87d8 (String, no ttl)
+            fusioncache:v2:product:582b87d8 (Hash, ttl 59 s)
+            fusioncache:v2:product:582b87d8 (Hash, ttl 59 s)
+
+B returned stale data for 59.2 s (223 stale reads).
+
+===== fusioncache tag expiration-only =====
+fusioncache, invalidate by tag, options=expiration-only
+A reads after the invalidation: no
+A https://fusioncache-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 156 ms, B 161 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:c55fcde6 miss
+            L2 set v2:product:c55fcde6
+         B -> v1 (l2)
+            L2 get v2:product:c55fcde6 hit
+            L2 get v2:__fc:t:product-tag:c55fcde6 miss
+         Redis after warm-up:
+            fusioncache:source:c55fcde6 (String, no ttl)
+            fusioncache:source:c55fcde6 (String, no ttl)
+            fusioncache:v2:product:c55fcde6 (Hash, ttl 59 s)
+            fusioncache:v2:product:c55fcde6 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache:source:c55fcde6 (String, no ttl)
+            fusioncache:source:c55fcde6 (String, no ttl)
+            fusioncache:v2:__fc:t:product-tag:c55fcde6 (Hash, ttl 863999 s)
+            fusioncache:v2:__fc:t:product-tag:c55fcde6 (Hash, ttl 863999 s)
+            fusioncache:v2:product:c55fcde6 (Hash, ttl 58 s)
+            fusioncache:v2:product:c55fcde6 (Hash, ttl 58 s)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+ 10.3 s  B -> v1 (l1)
+ 15.5 s  B -> v1 (l1)
+ 20.8 s  B -> v1 (l1)
+ 25.8 s  B -> v1 (l1)
+ 30.9 s  B -> v1 (l1)
+ 36.0 s  B -> v1 (l1)
+ 41.0 s  B -> v1 (l1)
+ 46.1 s  B -> v1 (l1)
+ 51.1 s  B -> v1 (l1)
+ 56.2 s  B -> v1 (l1)
+ 59.1 s  B -> v2 (source)
+            L2 get v2:product:c55fcde6 miss
+            L2 set v2:product:c55fcde6
+         Redis at the end:
+            fusioncache:source:c55fcde6 (String, no ttl)
+            fusioncache:source:c55fcde6 (String, no ttl)
+            fusioncache:v2:__fc:t:product-tag:c55fcde6 (Hash, ttl 863939 s)
+            fusioncache:v2:__fc:t:product-tag:c55fcde6 (Hash, ttl 863939 s)
+            fusioncache:v2:product:c55fcde6 (Hash, ttl 59 s)
+            fusioncache:v2:product:c55fcde6 (Hash, ttl 59 s)
+
+B returned stale data for 59.1 s (218 stale reads).
+
+===== fusioncache key complete =====
+fusioncache, invalidate by key, options=complete
+A reads after the invalidation: no
+A https://fusioncache-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 165 ms, B 165 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:1eab6d9d miss
+            L2 set v2:product:1eab6d9d
+         B -> v1 (l2)
+            L2 get v2:product:1eab6d9d hit
+            L2 get v2:__fc:t:product-tag:1eab6d9d miss
+         Redis after warm-up:
+            fusioncache:source:1eab6d9d (String, no ttl)
+            fusioncache:source:1eab6d9d (String, no ttl)
+            fusioncache:v2:product:1eab6d9d (Hash, ttl 59 s)
+            fusioncache:v2:product:1eab6d9d (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache:source:1eab6d9d (String, no ttl)
+            fusioncache:source:1eab6d9d (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+  9.1 s  B -> v2 (source)
+            L2 get v2:product:1eab6d9d miss
+            L2 set v2:product:1eab6d9d
+         Redis at the end:
+            fusioncache:source:1eab6d9d (String, no ttl)
+            fusioncache:source:1eab6d9d (String, no ttl)
+            fusioncache:v2:product:1eab6d9d (Hash, ttl 59 s)
+            fusioncache:v2:product:1eab6d9d (Hash, ttl 59 s)
+
+B returned stale data for 9.1 s (34 stale reads).
+
+===== fusioncache tag complete =====
+fusioncache, invalidate by tag, options=complete
+A reads after the invalidation: no
+A https://fusioncache-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 156 ms, B 161 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:b7e696f5 miss
+            L2 set v2:product:b7e696f5
+         B -> v1 (l2)
+            L2 get v2:product:b7e696f5 hit
+            L2 get v2:__fc:t:product-tag:b7e696f5 miss
+         Redis after warm-up:
+            fusioncache:source:b7e696f5 (String, no ttl)
+            fusioncache:source:b7e696f5 (String, no ttl)
+            fusioncache:v2:product:b7e696f5 (Hash, ttl 59 s)
+            fusioncache:v2:product:b7e696f5 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache:source:b7e696f5 (String, no ttl)
+            fusioncache:source:b7e696f5 (String, no ttl)
+            fusioncache:v2:__fc:t:product-tag:b7e696f5 (Hash, ttl 863999 s)
+            fusioncache:v2:__fc:t:product-tag:b7e696f5 (Hash, ttl 863999 s)
+            fusioncache:v2:product:b7e696f5 (Hash, ttl 58 s)
+            fusioncache:v2:product:b7e696f5 (Hash, ttl 58 s)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+  9.3 s  B -> v1 (l2)
+            L2 get v2:product:b7e696f5 hit
+  9.6 s  B -> v1 (l1)
+ 14.6 s  B -> v1 (l1)
+ 19.4 s  B -> v1 (l2)
+            L2 get v2:product:b7e696f5 hit
+ 19.7 s  B -> v1 (l1)
+ 24.7 s  B -> v1 (l1)
+ 29.5 s  B -> v1 (l2)
+            L2 get v2:product:b7e696f5 hit
+ 29.8 s  B -> v1 (l1)
+ 34.8 s  B -> v1 (l1)
+ 39.6 s  B -> v1 (l2)
+            L2 get v2:product:b7e696f5 hit
+ 39.9 s  B -> v1 (l1)
+ 44.9 s  B -> v1 (l1)
+ 49.7 s  B -> v1 (l2)
+            L2 get v2:product:b7e696f5 hit
+ 50.0 s  B -> v1 (l1)
+ 55.0 s  B -> v1 (l1)
+ 59.2 s  B -> v2 (source)
+            L2 get v2:product:b7e696f5 miss
+            L2 set v2:product:b7e696f5
+         Redis at the end:
+            fusioncache:source:b7e696f5 (String, no ttl)
+            fusioncache:source:b7e696f5 (String, no ttl)
+            fusioncache:v2:__fc:t:product-tag:b7e696f5 (Hash, ttl 863939 s)
+            fusioncache:v2:__fc:t:product-tag:b7e696f5 (Hash, ttl 863939 s)
+            fusioncache:v2:product:b7e696f5 (Hash, ttl 59 s)
+            fusioncache:v2:product:b7e696f5 (Hash, ttl 59 s)
+
+B returned stale data for 59.2 s (223 stale reads).

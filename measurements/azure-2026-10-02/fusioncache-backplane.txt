@@ -1,0 +1,251 @@
+environment: Azure Container Apps West US (one replica per instance, two for hybridcache-replicas), Azure Managed Redis Balanced_B0, Redis 7.4, OSSCluster, Entra ID, West US. Microsoft.Extensions.Caching.Hybrid 10.10.0, ZiggyCreatures.FusionCache 2.9.0 via AsHybridCache. L1 10 s, L2 60 s, poll 100 ms plus round trip. Scenario runs on a local machine in Germany.
+
+===== fusioncache-backplane key default =====
+fusioncache-backplane, invalidate by key, options=default
+A reads after the invalidation: no
+A https://fusioncache-backplane-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 185 ms, B 195 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:a3cdc906 miss
+            L2 set v2:product:a3cdc906
+         B -> v1 (l2)
+            L2 get v2:product:a3cdc906 hit
+            L2 get v2:__fc:t:! miss
+            L2 get v2:__fc:t:product-tag:a3cdc906 miss
+            L2 get v2:__fc:t:* miss
+         Redis after warm-up:
+            fusioncache-backplane:source:a3cdc906 (String, no ttl)
+            fusioncache-backplane:v2:product:a3cdc906 (Hash, ttl 53 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache-backplane:source:a3cdc906 (String, no ttl)
+  0.0 s  B -> v2 (source)
+            L2 get v2:product:a3cdc906 miss
+            L2 set v2:product:a3cdc906
+         Redis at the end:
+            fusioncache-backplane:source:a3cdc906 (String, no ttl)
+            fusioncache-backplane:v2:product:a3cdc906 (Hash, ttl 59 s)
+
+B saw the change on its first read.
+
+===== fusioncache-backplane key default read-a =====
+fusioncache-backplane, invalidate by key, options=default
+A reads after the invalidation: yes
+A https://fusioncache-backplane-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 185 ms, B 196 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:8528f5ff miss
+            L2 set v2:product:8528f5ff
+         B -> v1 (l2)
+            L2 get v2:product:8528f5ff hit
+            L2 get v2:__fc:t:product-tag:8528f5ff miss
+         Redis after warm-up:
+            fusioncache-backplane:source:8528f5ff (String, no ttl)
+            fusioncache-backplane:v2:product:8528f5ff (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache-backplane:source:8528f5ff (String, no ttl)
+         A -> v2 (source)
+            L2 get v2:product:8528f5ff miss
+            L2 set v2:product:8528f5ff
+  0.0 s  B -> v2 (l2)
+            L2 get v2:product:8528f5ff hit
+         Redis at the end:
+            fusioncache-backplane:source:8528f5ff (String, no ttl)
+            fusioncache-backplane:v2:product:8528f5ff (Hash, ttl 59 s)
+
+B saw the change on its first read.
+
+===== fusioncache-backplane tag default =====
+fusioncache-backplane, invalidate by tag, options=default
+A reads after the invalidation: no
+A https://fusioncache-backplane-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 181 ms, B 187 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:faaa0b4c miss
+            L2 set v2:product:faaa0b4c
+         B -> v1 (l2)
+            L2 get v2:product:faaa0b4c hit
+            L2 get v2:__fc:t:product-tag:faaa0b4c miss
+         Redis after warm-up:
+            fusioncache-backplane:source:faaa0b4c (String, no ttl)
+            fusioncache-backplane:v2:product:faaa0b4c (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache-backplane:source:faaa0b4c (String, no ttl)
+            fusioncache-backplane:v2:__fc:t:product-tag:faaa0b4c (Hash, ttl 863999 s)
+            fusioncache-backplane:v2:product:faaa0b4c (Hash, ttl 58 s)
+  0.0 s  B -> v2 (source)
+            L2 get v2:product:faaa0b4c hit
+            L2 set v2:product:faaa0b4c
+         Redis at the end:
+            fusioncache-backplane:source:faaa0b4c (String, no ttl)
+            fusioncache-backplane:v2:__fc:t:product-tag:faaa0b4c (Hash, ttl 863998 s)
+            fusioncache-backplane:v2:product:faaa0b4c (Hash, ttl 59 s)
+
+B saw the change on its first read.
+
+===== fusioncache-backplane tag default read-a =====
+fusioncache-backplane, invalidate by tag, options=default
+A reads after the invalidation: yes
+A https://fusioncache-backplane-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 188 ms, B 193 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:86e4b2a3 miss
+            L2 set v2:product:86e4b2a3
+         B -> v1 (l2)
+            L2 get v2:product:86e4b2a3 hit
+            L2 get v2:__fc:t:product-tag:86e4b2a3 miss
+         Redis after warm-up:
+            fusioncache-backplane:source:86e4b2a3 (String, no ttl)
+            fusioncache-backplane:v2:product:86e4b2a3 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache-backplane:source:86e4b2a3 (String, no ttl)
+            fusioncache-backplane:v2:__fc:t:product-tag:86e4b2a3 (Hash, ttl 863999 s)
+            fusioncache-backplane:v2:product:86e4b2a3 (Hash, ttl 58 s)
+         A -> v2 (source)
+            L2 get v2:__fc:t:! miss
+            L2 get v2:product:86e4b2a3 hit
+            L2 set v2:product:86e4b2a3
+  0.0 s  B -> v2 (l1)
+         Redis at the end:
+            fusioncache-backplane:source:86e4b2a3 (String, no ttl)
+            fusioncache-backplane:v2:__fc:t:product-tag:86e4b2a3 (Hash, ttl 863998 s)
+            fusioncache-backplane:v2:product:86e4b2a3 (Hash, ttl 59 s)
+
+B saw the change on its first read.
+
+===== fusioncache-backplane key expiration-only =====
+fusioncache-backplane, invalidate by key, options=expiration-only
+A reads after the invalidation: no
+A https://fusioncache-backplane-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 199 ms, B 190 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:1ed82e46 miss
+            L2 set v2:product:1ed82e46
+         B -> v1 (l2)
+            L2 get v2:product:1ed82e46 hit
+            L2 get v2:__fc:t:product-tag:1ed82e46 miss
+         Redis after warm-up:
+            fusioncache-backplane:source:1ed82e46 (String, no ttl)
+            fusioncache-backplane:v2:product:1ed82e46 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache-backplane:source:1ed82e46 (String, no ttl)
+  0.0 s  B -> v2 (source)
+            L2 get v2:product:1ed82e46 miss
+            L2 set v2:product:1ed82e46
+         Redis at the end:
+            fusioncache-backplane:source:1ed82e46 (String, no ttl)
+            fusioncache-backplane:v2:product:1ed82e46 (Hash, ttl 59 s)
+
+B saw the change on its first read.
+
+===== fusioncache-backplane tag expiration-only =====
+fusioncache-backplane, invalidate by tag, options=expiration-only
+A reads after the invalidation: no
+A https://fusioncache-backplane-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 179 ms, B 193 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:fe7606d8 miss
+            L2 set v2:product:fe7606d8
+         B -> v1 (l2)
+            L2 get v2:product:fe7606d8 hit
+            L2 get v2:__fc:t:product-tag:fe7606d8 miss
+         Redis after warm-up:
+            fusioncache-backplane:source:fe7606d8 (String, no ttl)
+            fusioncache-backplane:v2:product:fe7606d8 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache-backplane:source:fe7606d8 (String, no ttl)
+            fusioncache-backplane:v2:__fc:t:product-tag:fe7606d8 (Hash, ttl 863999 s)
+            fusioncache-backplane:v2:product:fe7606d8 (Hash, ttl 58 s)
+  0.0 s  B -> v2 (source)
+            L2 get v2:product:fe7606d8 hit
+            L2 set v2:product:fe7606d8
+         Redis at the end:
+            fusioncache-backplane:source:fe7606d8 (String, no ttl)
+            fusioncache-backplane:v2:__fc:t:product-tag:fe7606d8 (Hash, ttl 863998 s)
+            fusioncache-backplane:v2:product:fe7606d8 (Hash, ttl 59 s)
+
+B saw the change on its first read.
+
+===== fusioncache-backplane key complete =====
+fusioncache-backplane, invalidate by key, options=complete
+A reads after the invalidation: no
+A https://fusioncache-backplane-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 162 ms, B 180 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:67c3256c miss
+            L2 set v2:product:67c3256c
+         B -> v1 (l2)
+            L2 get v2:product:67c3256c hit
+            L2 get v2:__fc:t:product-tag:67c3256c miss
+         Redis after warm-up:
+            fusioncache-backplane:source:67c3256c (String, no ttl)
+            fusioncache-backplane:v2:product:67c3256c (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            fusioncache-backplane:source:67c3256c (String, no ttl)
+  0.0 s  B -> v2 (source)
+            L2 get v2:product:67c3256c miss
+            L2 set v2:product:67c3256c
+         Redis at the end:
+            fusioncache-backplane:source:67c3256c (String, no ttl)
+            fusioncache-backplane:v2:product:67c3256c (Hash, ttl 59 s)
+
+B saw the change on its first read.
+
+===== fusioncache-backplane tag complete =====
+fusioncache-backplane, invalidate by tag, options=complete
+A reads after the invalidation: no
+A https://fusioncache-backplane-a.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+B https://fusioncache-backplane-b.wittybeach-b62b16ed.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 196 ms, B 185 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get v2:product:0c764bb5 miss
+            L2 set v2:product:0c764bb5
+         B -> v1 (l2)
+            L2 get v2:product:0c764bb5 hit
+            L2 get v2:__fc:t:product-tag:0c764bb5 miss
+         Redis after warm-up:
+            fusioncache-backplane:source:0c764bb5 (String, no ttl)
+            fusioncache-backplane:v2:product:0c764bb5 (Hash, ttl 59 s)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            fusioncache-backplane:source:0c764bb5 (String, no ttl)
+            fusioncache-backplane:v2:__fc:t:product-tag:0c764bb5 (Hash, ttl 863999 s)
+            fusioncache-backplane:v2:product:0c764bb5 (Hash, ttl 58 s)
+  0.0 s  B -> v2 (source)
+            L2 get v2:product:0c764bb5 hit
+            L2 set v2:product:0c764bb5
+         Redis at the end:
+            fusioncache-backplane:source:0c764bb5 (String, no ttl)
+            fusioncache-backplane:v2:__fc:t:product-tag:0c764bb5 (Hash, ttl 863998 s)
+            fusioncache-backplane:v2:product:0c764bb5 (Hash, ttl 59 s)
+
+B saw the change on its first read.

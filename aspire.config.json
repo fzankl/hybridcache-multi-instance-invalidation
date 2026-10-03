@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "aspire/CacheInvalidation.AppHost/CacheInvalidation.AppHost.csproj"
+  }
+}

@@ -1,0 +1,317 @@
+environment: Azure Container Apps West US (one replica per instance), Azure Managed Redis Balanced_B0, Redis 7.4, OSSCluster, Entra ID, West US. Microsoft.Extensions.Caching.Hybrid 10.10.0. L1 10 s, L2 60 s, poll 100 ms plus round trip. Scenario runs on a local machine in Germany.
+
+===== hybridcache key default =====
+hybridcache, invalidate by key, options=default
+A reads after the invalidation: no
+A https://hybridcache-a.livelywater-d36116f1.westus.azurecontainerapps.io/
+B https://hybridcache-b.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 162 ms, B 160 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get __MSFT_HCT__product-tag:3ebb5006 miss
+            L2 get product:3ebb5006 miss
+         B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:3ebb5006 miss
+            L2 get product:3ebb5006 hit
+         Redis after warm-up:
+            hybridcache:product:3ebb5006 (Hash, ttl 54 s)
+            hybridcache:source:3ebb5006 (String, no ttl)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            hybridcache:source:3ebb5006 (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+  9.0 s  B -> v2 (source)
+            L2 get product:3ebb5006 miss
+         Redis at the end:
+            hybridcache:product:3ebb5006 (Hash, ttl 60 s)
+            hybridcache:source:3ebb5006 (String, no ttl)
+
+B returned stale data for 9.0 s (34 stale reads).
+
+===== hybridcache key default read-a =====
+hybridcache, invalidate by key, options=default
+A reads after the invalidation: yes
+A https://hybridcache-a.livelywater-d36116f1.westus.azurecontainerapps.io/
+B https://hybridcache-b.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 158 ms, B 159 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get __MSFT_HCT__product-tag:5947a0d1 miss
+            L2 get product:5947a0d1 miss
+         B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:5947a0d1 miss
+            L2 get product:5947a0d1 hit
+         Redis after warm-up:
+            hybridcache:product:5947a0d1 (Hash, ttl 60 s)
+            hybridcache:source:5947a0d1 (String, no ttl)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            hybridcache:source:5947a0d1 (String, no ttl)
+         A -> v2 (source)
+            L2 get product:5947a0d1 miss
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+  9.1 s  B -> v2 (l2)
+            L2 get product:5947a0d1 hit
+         Redis at the end:
+            hybridcache:product:5947a0d1 (Hash, ttl 51 s)
+            hybridcache:source:5947a0d1 (String, no ttl)
+
+B returned stale data for 9.1 s (34 stale reads).
+
+===== hybridcache tag default =====
+hybridcache, invalidate by tag, options=default
+A reads after the invalidation: no
+A https://hybridcache-a.livelywater-d36116f1.westus.azurecontainerapps.io/
+B https://hybridcache-b.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 166 ms, B 159 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get __MSFT_HCT__product-tag:4aca8c7d miss
+            L2 get product:4aca8c7d miss
+         B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:4aca8c7d miss
+            L2 get product:4aca8c7d hit
+         Redis after warm-up:
+            hybridcache:product:4aca8c7d (Hash, ttl 60 s)
+            hybridcache:source:4aca8c7d (String, no ttl)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            hybridcache:__MSFT_HCT__product-tag:4aca8c7d (Hash, ttl 86400000 s)
+            hybridcache:product:4aca8c7d (Hash, ttl 59 s)
+            hybridcache:source:4aca8c7d (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.0 s  B -> v1 (l1)
+  9.3 s  B -> v1 (l2)
+            L2 get product:4aca8c7d hit
+  9.5 s  B -> v1 (l1)
+ 14.6 s  B -> v1 (l1)
+ 19.4 s  B -> v1 (l2)
+            L2 get product:4aca8c7d hit
+ 19.7 s  B -> v1 (l1)
+ 24.7 s  B -> v1 (l1)
+ 29.5 s  B -> v1 (l2)
+            L2 get product:4aca8c7d hit
+ 29.8 s  B -> v1 (l1)
+ 34.8 s  B -> v1 (l1)
+ 39.6 s  B -> v1 (l2)
+            L2 get product:4aca8c7d hit
+ 39.8 s  B -> v1 (l1)
+ 44.9 s  B -> v1 (l1)
+ 49.7 s  B -> v1 (l2)
+            L2 get product:4aca8c7d hit
+ 49.9 s  B -> v1 (l1)
+ 55.0 s  B -> v1 (l1)
+ 59.2 s  B -> v2 (source)
+            L2 get product:4aca8c7d miss
+         Redis at the end:
+            hybridcache:__MSFT_HCT__product-tag:4aca8c7d (Hash, ttl 86399940 s)
+            hybridcache:product:4aca8c7d (Hash, ttl 60 s)
+            hybridcache:source:4aca8c7d (String, no ttl)
+
+B returned stale data for 59.2 s (223 stale reads).
+
+===== hybridcache tag default read-a =====
+hybridcache, invalidate by tag, options=default
+A reads after the invalidation: yes
+A https://hybridcache-a.livelywater-d36116f1.westus.azurecontainerapps.io/
+B https://hybridcache-b.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 158 ms, B 158 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get __MSFT_HCT__product-tag:1d88952a miss
+            L2 get product:1d88952a miss
+         B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:1d88952a miss
+            L2 get product:1d88952a hit
+         Redis after warm-up:
+            hybridcache:product:1d88952a (Hash, ttl 60 s)
+            hybridcache:source:1d88952a (String, no ttl)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            hybridcache:__MSFT_HCT__product-tag:1d88952a (Hash, ttl 86400000 s)
+            hybridcache:product:1d88952a (Hash, ttl 59 s)
+            hybridcache:source:1d88952a (String, no ttl)
+         A -> v2 (source)
+            L2 get product:1d88952a hit
+  0.0 s  B -> v1 (l1)
+  5.0 s  B -> v1 (l1)
+  9.0 s  B -> v2 (l2)
+            L2 get product:1d88952a hit
+         Redis at the end:
+            hybridcache:__MSFT_HCT__product-tag:1d88952a (Hash, ttl 86399990 s)
+            hybridcache:product:1d88952a (Hash, ttl 51 s)
+            hybridcache:source:1d88952a (String, no ttl)
+
+B returned stale data for 9.0 s (34 stale reads).
+
+===== hybridcache key expiration-only =====
+hybridcache, invalidate by key, options=expiration-only
+A reads after the invalidation: no
+A https://hybridcache-a.livelywater-d36116f1.westus.azurecontainerapps.io/
+B https://hybridcache-b.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 164 ms, B 157 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get __MSFT_HCT__product-tag:4b8de3eb miss
+            L2 get product:4b8de3eb miss
+         B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:4b8de3eb miss
+            L2 get product:4b8de3eb hit
+         Redis after warm-up:
+            hybridcache:product:4b8de3eb (Hash, ttl 60 s)
+            hybridcache:source:4b8de3eb (String, no ttl)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            hybridcache:source:4b8de3eb (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.0 s  B -> v1 (l1)
+ 10.1 s  B -> v1 (l1)
+ 15.1 s  B -> v1 (l1)
+ 20.2 s  B -> v1 (l1)
+ 25.2 s  B -> v1 (l1)
+ 30.3 s  B -> v1 (l1)
+ 35.3 s  B -> v1 (l1)
+ 40.4 s  B -> v1 (l1)
+ 45.4 s  B -> v1 (l1)
+ 50.4 s  B -> v1 (l1)
+ 55.5 s  B -> v1 (l1)
+ 59.2 s  B -> v2 (source)
+            L2 get product:4b8de3eb miss
+         Redis at the end:
+            hybridcache:product:4b8de3eb (Hash, ttl 60 s)
+            hybridcache:source:4b8de3eb (String, no ttl)
+
+B returned stale data for 59.2 s (223 stale reads).
+
+===== hybridcache tag expiration-only =====
+hybridcache, invalidate by tag, options=expiration-only
+A reads after the invalidation: no
+A https://hybridcache-a.livelywater-d36116f1.westus.azurecontainerapps.io/
+B https://hybridcache-b.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 164 ms, B 159 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get __MSFT_HCT__product-tag:92f94e05 miss
+            L2 get product:92f94e05 miss
+         B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:92f94e05 miss
+            L2 get product:92f94e05 hit
+         Redis after warm-up:
+            hybridcache:product:92f94e05 (Hash, ttl 60 s)
+            hybridcache:source:92f94e05 (String, no ttl)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            hybridcache:__MSFT_HCT__product-tag:92f94e05 (Hash, ttl 86400000 s)
+            hybridcache:product:92f94e05 (Hash, ttl 59 s)
+            hybridcache:source:92f94e05 (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.1 s  B -> v1 (l1)
+ 10.1 s  B -> v1 (l1)
+ 15.1 s  B -> v1 (l1)
+ 20.2 s  B -> v1 (l1)
+ 25.2 s  B -> v1 (l1)
+ 30.3 s  B -> v1 (l1)
+ 35.3 s  B -> v1 (l1)
+ 40.4 s  B -> v1 (l1)
+ 45.4 s  B -> v1 (l1)
+ 50.5 s  B -> v1 (l1)
+ 55.5 s  B -> v1 (l1)
+ 59.2 s  B -> v2 (source)
+            L2 get product:92f94e05 miss
+         Redis at the end:
+            hybridcache:__MSFT_HCT__product-tag:92f94e05 (Hash, ttl 86399940 s)
+            hybridcache:product:92f94e05 (Hash, ttl 60 s)
+            hybridcache:source:92f94e05 (String, no ttl)
+
+B returned stale data for 59.2 s (223 stale reads).
+
+===== hybridcache key complete =====
+hybridcache, invalidate by key, options=complete
+A reads after the invalidation: no
+A https://hybridcache-a.livelywater-d36116f1.westus.azurecontainerapps.io/
+B https://hybridcache-b.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 158 ms, B 163 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get __MSFT_HCT__product-tag:4615306e miss
+            L2 get product:4615306e miss
+         B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:4615306e miss
+            L2 get product:4615306e hit
+         Redis after warm-up:
+            hybridcache:product:4615306e (Hash, ttl 60 s)
+            hybridcache:source:4615306e (String, no ttl)
+-- source changed to v2, A removed the entry by key --
+         Redis after invalidation:
+            hybridcache:source:4615306e (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.0 s  B -> v1 (l1)
+  9.3 s  B -> v2 (source)
+            L2 get product:4615306e miss
+         Redis at the end:
+            hybridcache:product:4615306e (Hash, ttl 60 s)
+            hybridcache:source:4615306e (String, no ttl)
+
+B returned stale data for 9.3 s (35 stale reads).
+
+===== hybridcache tag complete =====
+hybridcache, invalidate by tag, options=complete
+A reads after the invalidation: no
+A https://hybridcache-a.livelywater-d36116f1.westus.azurecontainerapps.io/
+B https://hybridcache-b.livelywater-d36116f1.westus.azurecontainerapps.io/
+L1 (LocalCacheExpiration) 00:00:10, L2 (Expiration) 00:01:00
+Round trip: A 156 ms, B 159 ms (median of 5)
+
+         A -> v1 (source)
+            L2 get __MSFT_HCT__product-tag:2f7f2644 miss
+            L2 get product:2f7f2644 miss
+         B -> v1 (l2)
+            L2 get __MSFT_HCT__product-tag:2f7f2644 miss
+            L2 get product:2f7f2644 hit
+         Redis after warm-up:
+            hybridcache:product:2f7f2644 (Hash, ttl 60 s)
+            hybridcache:source:2f7f2644 (String, no ttl)
+-- source changed to v2, A removed the entry by tag --
+         Redis after invalidation:
+            hybridcache:__MSFT_HCT__product-tag:2f7f2644 (Hash, ttl 86400000 s)
+            hybridcache:product:2f7f2644 (Hash, ttl 59 s)
+            hybridcache:source:2f7f2644 (String, no ttl)
+  0.0 s  B -> v1 (l1)
+  5.0 s  B -> v1 (l1)
+  9.3 s  B -> v1 (l2)
+            L2 get product:2f7f2644 hit
+  9.6 s  B -> v1 (l1)
+ 14.6 s  B -> v1 (l1)
+ 19.4 s  B -> v1 (l2)
+            L2 get product:2f7f2644 hit
+ 19.7 s  B -> v1 (l1)
+ 24.7 s  B -> v1 (l1)
+ 29.5 s  B -> v1 (l2)
+            L2 get product:2f7f2644 hit
+ 29.7 s  B -> v1 (l1)
+ 34.8 s  B -> v1 (l1)
+ 39.6 s  B -> v1 (l2)
+            L2 get product:2f7f2644 hit
+ 39.9 s  B -> v1 (l1)
+ 45.0 s  B -> v1 (l1)
+ 49.8 s  B -> v1 (l2)
+            L2 get product:2f7f2644 hit
+ 50.1 s  B -> v1 (l1)
+ 55.1 s  B -> v1 (l1)
+ 59.1 s  B -> v2 (source)
+            L2 get product:2f7f2644 miss
+         Redis at the end:
+            hybridcache:__MSFT_HCT__product-tag:2f7f2644 (Hash, ttl 86399940 s)
+            hybridcache:product:2f7f2644 (Hash, ttl 60 s)
+            hybridcache:source:2f7f2644 (String, no ttl)
+
+B returned stale data for 59.1 s (222 stale reads).
