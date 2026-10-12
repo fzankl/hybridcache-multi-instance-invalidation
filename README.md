@@ -2,6 +2,8 @@
 
 You call `RemoveAsync` on one instance, and the other instance keeps serving the old value. This repository shows how long it keeps serving it, for Microsoft's `HybridCache` and for FusionCache with and without a backplane, all behind the same `HybridCache` API.
 
+The measurement on Azure Container Apps with Azure Managed Redis, and why a remove by tag outlives the local cache, are in the article [HybridCache: The remove went through, the other instances still serve the old value](https://blog.fzankl.de/hybridcache-multi-instance-invalidation/).
+
 In short: after a remove by key, the other instance is stale for the L1 lifetime (10s here). After a remove by tag, it can be stale for the L2 lifetime (60s). With FusionCache's backplane, the remove reaches the other instance, which returns the new value on its first or second read. Per-call options that set only `Expiration` apply it to L1 as well, and then a remove by key is stale for 60s too. Without a backplane, FusionCache can shorten the window after a remove by tag: with tag markers kept in L1 for 5s, the other instance was stale for 5s.
 
 Everything runs locally: one Redis container and several instances of the same API, orchestrated by Aspire. No Azure subscription needed, though the same AppHost also [deploys to Azure](#run-it-in-azure).
